@@ -402,13 +402,15 @@ namespace zmq
 
         inline ~context_t () ZMQ_NOTHROW
         {
-            int rc = zmq_ctx_destroy (ptr);
-            ZMQ_ASSERT (rc == 0);
+            close(); // XXX saki
         }
 
         inline void close() ZMQ_NOTHROW
         {
+            if (!ptr) // XXX saki, already closed
+                return ;
             int rc = zmq_ctx_destroy (ptr);
+            ptr = NULL;	// XXX saki
             ZMQ_ASSERT (rc == 0);
         }
 
