@@ -25,10 +25,14 @@
 #ifndef __ZMQ_HPP_INCLUDED__
 #define __ZMQ_HPP_INCLUDED__
 
-#if __cplusplus >= 201103L
-#define ZMQ_CPP11
-#define ZMQ_NOTHROW noexcept
-#define ZMQ_EXPLICIT explicit
+#if (__cplusplus >= 201103L)
+   #define ZMQ_CPP11
+   #define ZMQ_NOTHROW noexcept
+   #define ZMQ_EXPLICIT explicit
+#elif  (defined(_MSC_VER) && (_MSC_VER >= 1900))
+   #define ZMQ_CPP11
+   #define ZMQ_NOTHROW noexcept
+   #define ZMQ_EXPLICIT explicit
 #else
     #define ZMQ_CPP03
     #define ZMQ_NOTHROW
@@ -66,6 +70,9 @@
     #else
         #define ZMQ_DELETED_FUNCTION
     #endif
+#elif defined(_MSC_VER) && (_MSC_VER >= 1900)
+    #define ZMQ_HAS_RVALUE_REFS
+    #define ZMQ_DELETED_FUNCTION = delete
 #elif defined(_MSC_VER) && (_MSC_VER >= 1600)
     #define ZMQ_HAS_RVALUE_REFS
     #define ZMQ_DELETED_FUNCTION
@@ -111,12 +118,17 @@ namespace zmq
     public:
 
         error_t () : errnum (zmq_errno ()) {}
-
-        virtual const char *what () const throw ()
+#ifdef ZMQ_CPP11
+        virtual const char *what () const noexcept
         {
             return zmq_strerror (errnum);
         }
-
+#else
+        virtual const char *what() const throw ()
+        {
+            return zmq_strerror(errnum);
+        }
+#endif
         int num () const
         {
             return errnum;
@@ -165,7 +177,7 @@ namespace zmq
         if (rc != 0)
             throw error_t ();
     }
-    
+
 #ifdef ZMQ_HAS_PROXY_STEERABLE
     inline void proxy_steerable (void *frontend, void *backend, void *capture, void *control)
     {
@@ -174,7 +186,7 @@ namespace zmq
             throw error_t ();
     }
 #endif
-    
+
     inline void version (int *major_, int *minor_, int *patch_)
     {
         zmq_version (major_, minor_, patch_);
@@ -358,6 +370,14 @@ namespace zmq
             std::string a(data<char>(), size());
             std::string b(other->data<char>(), other->size());
             return a == b;
+        }
+
+        inline const char* gets(const char *property_)
+        {
+            const char* value = zmq_msg_gets (&msg, property_);
+            if (value == NULL)
+                throw error_t ();
+            return value;
         }
 
     private:
@@ -598,7 +618,7 @@ namespace zmq
         {
             return(ptr != NULL);
         }
-        
+
         inline size_t send (const void *buf_, size_t len_, int flags_ = 0)
         {
             int nbytes = zmq_send (ptr, buf_, len_, flags_);
@@ -651,7 +671,7 @@ namespace zmq
                 return false;
             throw error_t ();
         }
-        
+
     private:
         inline void init(context_t& context_, int type_)
         {
@@ -691,9 +711,9 @@ namespace zmq
 
             rc = zmq_connect (s, addr_);
             assert (rc == 0);
-            
+
             on_monitor_started();
-            
+
             while (true) {
                 zmq_msg_t eventMsg;
                 zmq_msg_init (&eventMsg);
@@ -710,7 +730,7 @@ namespace zmq
 #else
                 zmq_event_t* event = static_cast<zmq_event_t*>(zmq_msg_data(&eventMsg));
 #endif
-                
+
 #ifdef ZMQ_NEW_MONITOR_EVENT_LAYOUT
                 zmq_msg_t addrMsg;
                 zmq_msg_init (&addrMsg);
