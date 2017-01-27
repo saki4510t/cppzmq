@@ -27,6 +27,7 @@
 #include <deque>
 #include <iomanip>
 #include <sstream>
+#include <stdexcept>
 
 namespace zmq {
 
@@ -45,6 +46,13 @@ private:
     std::deque<message_t> m_parts;
 
 public:
+
+    typedef std::deque<message_t>::iterator iterator;
+    typedef std::deque<message_t>::const_iterator const_iterator;
+
+    typedef std::deque<message_t>::reverse_iterator reverse_iterator;
+    typedef std::deque<message_t>::const_reverse_iterator const_reverse_iterator;
+
     // Default constructor
     multipart_t()
     {}
@@ -90,6 +98,76 @@ public:
     virtual ~multipart_t()
     {
         clear();
+    }
+
+    message_t& operator[] (size_t n)
+    {
+        return m_parts[n];
+    }
+
+    const message_t& operator[] (size_t n) const
+    {
+        return m_parts[n];
+    }
+
+    message_t& at (size_t n)
+    {
+        return m_parts.at(n);
+    }
+
+    const message_t& at (size_t n) const
+    {
+        return m_parts.at(n);
+    }
+
+    iterator begin()
+    {
+        return m_parts.begin();
+    }
+
+    const_iterator begin() const
+    {
+        return m_parts.begin();
+    }
+
+    const_iterator cbegin() const
+    {
+        return m_parts.cbegin();
+    }
+
+    reverse_iterator rbegin()
+    {
+        return m_parts.rbegin();
+    }
+
+    const_reverse_iterator rbegin() const
+    {
+        return m_parts.rbegin();
+    }
+
+    iterator end()
+    {
+        return m_parts.end();
+    }
+
+    const_iterator end() const
+    {
+        return m_parts.end();
+    }
+
+    const_iterator cend() const
+    {
+        return m_parts.cend();
+    }
+
+    reverse_iterator rend()
+    {
+        return m_parts.rend();
+    }
+
+    const_reverse_iterator rend() const
+    {
+        return m_parts.rend();
     }
 
     // Delete all parts
@@ -318,8 +396,8 @@ public:
     // Self test
     static int test()
     {
-        bool ok = true;
-        float num = 0;
+        bool ok = true; (void) ok;
+        float num = 0; (void) num;
         std::string str = "";
         message_t msg;
 
