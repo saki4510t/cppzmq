@@ -52,6 +52,7 @@
 #ifdef ZMQ_CPP11
 #include <chrono>
 #include <tuple>
+#include <functional>
 #endif
 
 //  Detect whether the compiler supports C++11 rvalue references.
@@ -372,7 +373,7 @@ namespace zmq
             return a == b;
         }
 
-#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 0, 8)
+#if ZMQ_VERSION >= ZMQ_MAKE_VERSION(4, 1, 0)
         inline const char* gets(const char *property_)
         {
             const char* value = zmq_msg_gets (&msg, property_);
@@ -489,6 +490,7 @@ namespace zmq
     class socket_t
     {
         friend class monitor_t;
+        friend class poller_t;
     public:
         inline socket_t(context_t& context_, int type_)
         {
@@ -826,6 +828,63 @@ namespace zmq
     private:
         void* socketPtr;
     };
+
+#if defined(ZMQ_BUILD_DRAFT_API) && defined(ZMQ_CPP11) && defined(ZMQ_HAVE_POLLER)
+    class poller_t
+    {
+    public:
+        poller_t () : poller_ptr (zmq_poller_new ())
+        {
+            if (!poller_ptr)
+                throw error_t ();
+        }
+
+        ~poller_t ()
+        {
+            zmq_poller_destroy (&poller_ptr);
+        }
+
+        bool add (zmq::socket_t &socket, short events, std::function<void(void)> &handler)
+        {
+            if (0 == zmq_poller_add (poller_ptr, socket.ptr, handler ? &handler : NULL, events)) {
+                poller_events.emplace_back (zmq_poller_event_t ());
+                return true;
+            }
+            return false;
+        }
+
+        bool remove (zmq::socket_t &socket)
+        {
+            if (0 == zmq_poller_remove (poller_ptr, socket.ptr)) {
+                poller_events.pop_back ();
+                return true;
+            }
+            return false;
+        }
+
+        bool wait (std::chrono::milliseconds timeout)
+        {
+            int rc = zmq_poller_wait_all (poller_ptr, poller_events.data (), poller_events.size (), static_cast<long>(timeout.count ()));
+            if (rc >= 0) {
+                std::for_each (poller_events.begin (), poller_events.begin () + rc, [](zmq_poller_event_t& event) {
+                    if (event.user_data != NULL)
+                        (*reinterpret_cast<std::function<void(void)>*> (event.user_data)) ();
+                });
+                return true;
+            }
+
+            if (zmq_errno ()  == ETIMEDOUT)
+                return false;
+
+            throw error_t ();
+        }
+
+    private:
+        void *poller_ptr;
+        std::vector<zmq_poller_event_t> poller_events;
+    };
+#endif //  defined(ZMQ_BUILD_DRAFT_API) && defined(ZMQ_CPP11) && defined(ZMQ_HAVE_POLLER)
+
 }
 
 #endif
